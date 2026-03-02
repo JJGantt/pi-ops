@@ -248,6 +248,25 @@ def check_sync_freshness():
 
 
 # ---------------------------------------------------------------------------
+# Aggregate runner (importable by mcp_server.py)
+# ---------------------------------------------------------------------------
+
+def run_all_checks():
+    """Run every health check and return a flat list of result dicts."""
+    all_results = []
+    all_results.extend(check_services())
+    all_results.extend(check_memory())
+    all_results.extend(check_swap())
+    all_results.extend(check_disk())
+    all_results.extend(check_temperature())
+    all_results.extend(check_log_sizes())
+    all_results.extend(check_ports())
+    all_results.extend(check_claude_sessions())
+    all_results.extend(check_sync_freshness())
+    return all_results
+
+
+# ---------------------------------------------------------------------------
 # Alerting
 # ---------------------------------------------------------------------------
 
@@ -357,17 +376,7 @@ def main():
     parser.add_argument("--dry-run", "-n", action="store_true", help="Show alerts without sending")
     args = parser.parse_args()
 
-    # Run all checks
-    all_results = []
-    all_results.extend(check_services())
-    all_results.extend(check_memory())
-    all_results.extend(check_swap())
-    all_results.extend(check_disk())
-    all_results.extend(check_temperature())
-    all_results.extend(check_log_sizes())
-    all_results.extend(check_ports())
-    all_results.extend(check_claude_sessions())
-    all_results.extend(check_sync_freshness())
+    all_results = run_all_checks()
 
     if args.verbose:
         print(f"Pi Health Check — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
