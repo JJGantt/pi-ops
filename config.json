@@ -1,13 +1,8 @@
 {
   "services": [
-    "claude-bot.service",
-    "claude-bot-opus.service",
-    "claude-bot-sonnet.service",
-    "claude-bot-haiku.service",
-    "claude-bot-codex.service",
+    "claude-bots.service",
     "pi-server.service",
     "tv-server.service",
-    "ambient-voice.service",
     "claude-remote-control.service",
     "mcp-history-receiver.service",
     "mcp-history-watch.service"
@@ -18,11 +13,7 @@
     "pi-to-mac-sync.timer"
   ],
   "log_files": [
-    "/home/jaredgantt/telegram-bot/bot.log",
-    "/home/jaredgantt/telegram-bot/bot-opus.log",
-    "/home/jaredgantt/telegram-bot/bot-sonnet.log",
-    "/home/jaredgantt/telegram-bot/bot-haiku.log",
-    "/home/jaredgantt/telegram-bot/bot-codex.log",
+    "/home/jaredgantt/telegram-bot/multi-bot.log",
     "/home/jaredgantt/pi-server/server.log",
     "/home/jaredgantt/tv-dashboard/tv-server.log",
     "/home/jaredgantt/data/logs/summarizer.log",
