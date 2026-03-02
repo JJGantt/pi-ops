@@ -3,7 +3,7 @@
     "claude-bots.service",
     "pi-server.service",
     "tv-server.service",
-    "claude-remote-control.service",
+
     "mcp-history-receiver.service",
     "mcp-history-watch.service"
   ],
