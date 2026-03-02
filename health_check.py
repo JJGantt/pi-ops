@@ -375,14 +375,15 @@ def main():
         elif args.verbose and r["severity"] != OK:
             print(f"  suppressed ({reason}): {r['name']} [{r['severity']}]")
 
-    # Update state
-    now = time.time()
-    for r in all_results:
-        if r["severity"] != OK:
-            state[r["name"]] = {"severity": r["severity"], "time": now}
-        elif r["name"] in state:
-            del state[r["name"]]
-    save_state(state)
+    # Update state (skip on dry-run so it doesn't affect cooldowns)
+    if not args.dry_run:
+        now = time.time()
+        for r in all_results:
+            if r["severity"] != OK:
+                state[r["name"]] = {"severity": r["severity"], "time": now}
+            elif r["name"] in state:
+                del state[r["name"]]
+        save_state(state)
 
     # Send batched alert
     if alerts or recoveries:
