@@ -1,0 +1,19 @@
+/home/jaredgantt/telegram-bot/bot.log
+/home/jaredgantt/telegram-bot/bot-opus.log
+/home/jaredgantt/telegram-bot/bot-sonnet.log
+/home/jaredgantt/telegram-bot/bot-haiku.log
+/home/jaredgantt/telegram-bot/bot-codex.log
+/home/jaredgantt/pi-server/server.log
+/home/jaredgantt/tv-dashboard/tv-server.log
+/home/jaredgantt/data/logs/summarizer.log
+/home/jaredgantt/ambient/ambient.log
+{
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    copytruncate
+    missingok
+    notifempty
+    su root root
+}
