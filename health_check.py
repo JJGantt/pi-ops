@@ -195,6 +195,24 @@ def check_ports():
     return results
 
 
+def check_claude_sessions():
+    """Check total size of ~/.claude/projects/ directory."""
+    projects_dir = Path.home() / ".claude" / "projects"
+    if not projects_dir.exists():
+        return [result("claude-sessions", OK, "no projects dir")]
+
+    total_bytes = sum(f.stat().st_size for f in projects_dir.rglob("*") if f.is_file())
+    total_mb = total_bytes / (1024 * 1024)
+    detail = f"{total_mb:.0f} MB"
+
+    t = CONFIG["thresholds"]
+    if total_mb > t["claude_sessions_crit_mb"]:
+        return [result("claude-sessions", CRIT, detail)]
+    elif total_mb > t["claude_sessions_warn_mb"]:
+        return [result("claude-sessions", WARN, detail)]
+    return [result("claude-sessions", OK, detail)]
+
+
 def check_sync_freshness():
     """Check how recently sync timers last fired."""
     results = []
@@ -348,6 +366,7 @@ def main():
     all_results.extend(check_temperature())
     all_results.extend(check_log_sizes())
     all_results.extend(check_ports())
+    all_results.extend(check_claude_sessions())
     all_results.extend(check_sync_freshness())
 
     if args.verbose:
