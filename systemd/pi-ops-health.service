@@ -1,0 +1,9 @@
+[Unit]
+Description=Pi health check (oneshot)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/jaredgantt/pi-ops/health_check.py
+User=jaredgantt
+Group=jaredgantt

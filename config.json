@@ -1,0 +1,46 @@
+{
+  "services": [
+    "claude-bot.service",
+    "claude-bot-opus.service",
+    "claude-bot-sonnet.service",
+    "claude-bot-haiku.service",
+    "claude-bot-codex.service",
+    "pi-server.service",
+    "tv-server.service",
+    "ambient-voice.service",
+    "claude-remote-control.service",
+    "mcp-history-receiver.service",
+    "mcp-history-watch.service"
+  ],
+  "ports": [8765, 8766, 8767],
+  "sync_timers": [
+    "mac-to-pi-sync.timer",
+    "pi-to-mac-sync.timer"
+  ],
+  "log_files": [
+    "/home/jaredgantt/telegram-bot/bot.log",
+    "/home/jaredgantt/telegram-bot/bot-opus.log",
+    "/home/jaredgantt/telegram-bot/bot-sonnet.log",
+    "/home/jaredgantt/telegram-bot/bot-haiku.log",
+    "/home/jaredgantt/telegram-bot/bot-codex.log",
+    "/home/jaredgantt/pi-server/server.log",
+    "/home/jaredgantt/tv-dashboard/tv-server.log",
+    "/home/jaredgantt/data/logs/summarizer.log",
+    "/home/jaredgantt/ambient/ambient.log"
+  ],
+  "thresholds": {
+    "mem_warn_mb": 300,
+    "mem_crit_mb": 150,
+    "swap_warn_pct": 80,
+    "swap_crit_pct": 95,
+    "disk_warn_pct": 80,
+    "disk_crit_pct": 90,
+    "temp_warn_c": 72,
+    "temp_crit_c": 78,
+    "log_warn_mb": 50,
+    "log_crit_mb": 200,
+    "sync_stale_min": 90
+  },
+  "cooldown_minutes": 30,
+  "state_file": "/home/jaredgantt/data/ops/state.json"
+}
