@@ -30,7 +30,9 @@
     "temp_crit_c": 78,
     "log_warn_mb": 50,
     "log_crit_mb": 200,
-    "sync_stale_min": 90
+    "sync_stale_min": 90,
+    "claude_sessions_warn_mb": 200,
+    "claude_sessions_crit_mb": 500
   },
   "cooldown_minutes": 30,
   "state_file": "/home/jaredgantt/data/ops/state.json"
