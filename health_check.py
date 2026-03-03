@@ -266,12 +266,12 @@ def extract_value(check):
             # "3.2% used (65 / 2048 MB)"
             pct = float(detail.split("%")[0])
             inner = detail.split("(")[1].split(")")[0].split("/")
-            return {"swap_pct": pct, "swap_used_mb": float(inner[0]), "swap_total_mb": float(inner[1])}
+            return {"swap_pct": pct, "swap_used_mb": float(inner[0].strip()), "swap_total_mb": float(inner[1].strip().split()[0])}
         if name == "disk":
             # "44.0% used (12.2 / 27.6 GB)"
             pct = float(detail.split("%")[0])
             inner = detail.split("(")[1].split(")")[0].split("/")
-            return {"disk_pct": pct, "disk_used_gb": float(inner[0]), "disk_total_gb": float(inner[1])}
+            return {"disk_pct": pct, "disk_used_gb": float(inner[0].strip()), "disk_total_gb": float(inner[1].strip().split()[0])}
         if name == "temperature":
             # "57.1°C"
             return {"temp_c": float(detail.replace("°C", ""))}
