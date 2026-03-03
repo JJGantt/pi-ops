@@ -21,6 +21,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG = json.loads((SCRIPT_DIR / "config.json").read_text())
 
+METRICS_FILE = Path.home() / "data" / "metrics" / "health_metrics.jsonl"
+
 # Load Telegram creds from .env
 def load_env():
     env_file = SCRIPT_DIR / ".env"
@@ -248,6 +250,68 @@ def check_sync_freshness():
 
 
 # ---------------------------------------------------------------------------
+# Metrics logging
+# ---------------------------------------------------------------------------
+
+def extract_value(check):
+    """Pull numeric/boolean values out of a check result's detail string."""
+    name = check["name"]
+    detail = check["detail"]
+    try:
+        if name == "memory":
+            # "3453 MB free / 4050 MB total"
+            parts = detail.split()
+            return {"mem_free_mb": float(parts[0]), "mem_total_mb": float(parts[4])}
+        if name == "swap":
+            # "3.2% used (65 / 2048 MB)"
+            pct = float(detail.split("%")[0])
+            inner = detail.split("(")[1].split(")")[0].split("/")
+            return {"swap_pct": pct, "swap_used_mb": float(inner[0]), "swap_total_mb": float(inner[1])}
+        if name == "disk":
+            # "44.0% used (12.2 / 27.6 GB)"
+            pct = float(detail.split("%")[0])
+            inner = detail.split("(")[1].split(")")[0].split("/")
+            return {"disk_pct": pct, "disk_used_gb": float(inner[0]), "disk_total_gb": float(inner[1])}
+        if name == "temperature":
+            # "57.1°C"
+            return {"temp_c": float(detail.replace("°C", ""))}
+        if name == "claude-sessions":
+            # "49 MB"
+            return {"size_mb": float(detail.split()[0])}
+        if name.startswith("log:"):
+            # "9.9 MB" or "file missing (ok)"
+            if "missing" in detail:
+                return {"size_mb": 0.0}
+            return {"size_mb": float(detail.split()[0])}
+        if name.startswith("svc:"):
+            return {"active": detail == "active"}
+        if name.startswith("port:"):
+            return {"listening": detail == "listening"}
+        if name.startswith("sync:"):
+            # "12 min ago" or "never triggered"
+            if "never" in detail:
+                return {"age_min": None}
+            return {"age_min": float(detail.split()[0])}
+    except Exception:
+        pass
+    return {}
+
+
+def log_metrics(results):
+    """Append one JSONL record with all check results + extracted values."""
+    METRICS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "checks": [
+            {**r, **extract_value(r)}
+            for r in results
+        ],
+    }
+    with METRICS_FILE.open("a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+# ---------------------------------------------------------------------------
 # Aggregate runner (importable by mcp_server.py)
 # ---------------------------------------------------------------------------
 
@@ -377,6 +441,7 @@ def main():
     args = parser.parse_args()
 
     all_results = run_all_checks()
+    log_metrics(all_results)
 
     if args.verbose:
         print(f"Pi Health Check — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
