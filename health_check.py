@@ -12,10 +12,11 @@ Usage:
 import argparse
 import json
 import os
+import re
 import subprocess
 import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -249,6 +250,60 @@ def check_sync_freshness():
     return results
 
 
+
+_RESUME_SOURCES = {"opus-telegram", "sonnet-telegram", "haiku-telegram", "codex-telegram"}
+_BOT_LOG = Path.home() / "telegram-bot" / "multi-bot.log"
+_RESUME_LOOKBACK_H = 6
+_RESUME_RUN_PATTERN = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ \[runner\] \[INFO\] Running claude "
+    r"\(source=(\S+), .*, resume=(yes|no)"
+)
+
+
+def check_bot_resume():
+    """Warn if resume-enabled Telegram bots are consistently running fresh sessions."""
+    if not _BOT_LOG.exists():
+        return [result("bot-resume", OK, "log not found")]
+
+    cutoff = datetime.now() - timedelta(hours=_RESUME_LOOKBACK_H)
+
+    try:
+        out = subprocess.run(
+            ["tail", "-n", "500", str(_BOT_LOG)],
+            capture_output=True, text=True, timeout=5
+        )
+        lines = out.stdout.splitlines()
+    except Exception as e:
+        return [result("bot-resume", WARN, f"can't read log: {e}")]
+
+    runs = {}  # source -> [True/False (resumed)]
+    for line in lines:
+        m = _RESUME_RUN_PATTERN.match(line)
+        if not m:
+            continue
+        ts_str, source, resumed = m.group(1), m.group(2), m.group(3)
+        if source not in _RESUME_SOURCES:
+            continue
+        try:
+            ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+        if ts < cutoff:
+            continue
+        runs.setdefault(source, []).append(resumed == "yes")
+
+    bad = [
+        s.replace("-telegram", "")
+        for s, flags in runs.items()
+        if len(flags) >= 2 and not any(flags)
+    ]
+
+    if bad:
+        return [result("bot-resume", WARN, f"stuck fresh (no resume): {', '.join(sorted(bad))}")]
+    active = len(runs)
+    return [result("bot-resume", OK, f"{active} active bot(s) resuming ok" if active else "no recent activity")]
+
+
 # ---------------------------------------------------------------------------
 # Metrics logging
 # ---------------------------------------------------------------------------
@@ -327,6 +382,7 @@ def run_all_checks():
     all_results.extend(check_ports())
     all_results.extend(check_claude_sessions())
     all_results.extend(check_sync_freshness())
+    all_results.extend(check_bot_resume())
     return all_results
 
 
