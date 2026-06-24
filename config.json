@@ -2,21 +2,18 @@
   "services": [
     "claude-bots.service",
     "pi-server.service",
-    "tv-server.service",
-
-    "mcp-history-receiver.service",
-    "mcp-history-watch.service"
+    "tv-server.service"
   ],
-  "ports": [8765, 8766, 8767],
-  "sync_timers": [
-    "mac-to-pi-sync.timer",
-    "pi-to-mac-sync.timer"
+  "ports": [
+    8765,
+    8766,
+    8767
   ],
+  "sync_timers": [],
   "log_files": [
     "/home/jaredgantt/telegram-bot/multi-bot.log",
     "/home/jaredgantt/pi-server/server.log",
     "/home/jaredgantt/tv-dashboard/tv-server.log",
-    "/home/jaredgantt/data/logs/summarizer.log",
     "/home/jaredgantt/ambient/ambient.log"
   ],
   "thresholds": {
