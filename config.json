@@ -6,15 +6,13 @@
   ],
   "ports": [
     8765,
-    8766,
-    8767
+    8766
   ],
   "sync_timers": [],
   "log_files": [
     "/home/jaredgantt/telegram-bot/multi-bot.log",
     "/home/jaredgantt/pi-server/server.log",
-    "/home/jaredgantt/tv-dashboard/tv-server.log",
-    "/home/jaredgantt/ambient/ambient.log"
+    "/home/jaredgantt/tv-dashboard/tv-server.log"
   ],
   "thresholds": {
     "mem_warn_mb": 300,
