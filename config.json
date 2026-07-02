@@ -1,18 +1,16 @@
 {
   "services": [
-    "claude-bots.service",
-    "pi-server.service",
-    "tv-server.service"
+    "data-http.service",
+    "voice-worker.service",
+    "pi-audio.service",
+    "petlibro-collector.service"
   ],
   "ports": [
-    8765,
-    8766
+    27186
   ],
   "sync_timers": [],
   "log_files": [
-    "/home/jaredgantt/telegram-bot/multi-bot.log",
-    "/home/jaredgantt/pi-server/server.log",
-    "/home/jaredgantt/tv-dashboard/tv-server.log"
+    "/home/jaredgantt/voice-worker.log"
   ],
   "thresholds": {
     "mem_warn_mb": 300,
