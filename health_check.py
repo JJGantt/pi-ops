@@ -374,16 +374,16 @@ def format_alert_message(alerts, recoveries):
     lines = []
 
     if alerts:
-        lines.append("<b>Pi Health Alert</b>")
+        lines.append("Pi Health Alert")
         lines.append("")
         for a in alerts:
             icon = "\u26a0\ufe0f" if a["severity"] == WARN else "\u274c"
-            lines.append(f"{icon} <b>[{a['severity']}]</b> {a['name']}: {a['detail']}")
+            lines.append(f"{icon} [{a['severity']}] {a['name']}: {a['detail']}")
 
     if recoveries:
         if lines:
             lines.append("")
-        lines.append("<b>Recovered</b>")
+        lines.append("Recovered")
         lines.append("")
         for r in recoveries:
             lines.append(f"\u2705 {r['name']}: {r['detail']}")
