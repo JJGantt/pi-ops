@@ -1,44 +1,27 @@
 #!/usr/bin/env python3
 """
-Pi health checker — runs 8 checks, batches alerts to Telegram.
-No pip dependencies; stdlib only.
+Pi health checker — runs its checks and prints WARN/CRIT findings, which land in the
+journal under systemd (journalctl -u pi-ops-health). No pip dependencies; stdlib only.
 
 Usage:
-    python3 health_check.py              # Normal: alert on WARN/CRIT only
+    python3 health_check.py              # Normal: print WARN/CRIT findings only
     python3 health_check.py --verbose    # Print all results
-    python3 health_check.py --dry-run    # Show what would alert, don't send
+    python3 health_check.py --dry-run    # Show findings without touching the cooldown state
 """
 
 import argparse
 import json
 import os
-import re
 import subprocess
 import time
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG = json.loads((SCRIPT_DIR / "config.json").read_text())
 
 METRICS_FILE = Path.home() / "data" / "metrics" / "health_metrics.jsonl"
-
-# Load Telegram creds from .env
-def load_env():
-    env_file = SCRIPT_DIR / ".env"
-    vals = {}
-    if env_file.exists():
-        for line in env_file.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, v = line.split("=", 1)
-                vals[k.strip()] = v.strip()
-    return vals
-
-ENV = load_env()
-BOT_TOKEN = ENV.get("TELEGRAM_BOT_TOKEN", "")
-CHAT_ID = ENV.get("TELEGRAM_CHAT_ID", "")
 
 # ---------------------------------------------------------------------------
 # Severity levels
@@ -251,59 +234,6 @@ def check_sync_freshness():
 
 
 
-_RESUME_SOURCES = {"opus-telegram", "sonnet-telegram", "haiku-telegram", "codex-telegram"}
-_BOT_LOG = Path.home() / "telegram-bot" / "multi-bot.log"
-_RESUME_LOOKBACK_H = 6
-_RESUME_RUN_PATTERN = re.compile(
-    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ \[runner\] \[INFO\] Running claude "
-    r"\(source=(\S+), .*, resume=(yes|no)"
-)
-
-
-def check_bot_resume():
-    """Warn if resume-enabled Telegram bots are consistently running fresh sessions."""
-    if not _BOT_LOG.exists():
-        return [result("bot-resume", OK, "log not found")]
-
-    cutoff = datetime.now() - timedelta(hours=_RESUME_LOOKBACK_H)
-
-    try:
-        out = subprocess.run(
-            ["tail", "-n", "500", str(_BOT_LOG)],
-            capture_output=True, text=True, timeout=5
-        )
-        lines = out.stdout.splitlines()
-    except Exception as e:
-        return [result("bot-resume", WARN, f"can't read log: {e}")]
-
-    runs = {}  # source -> [True/False (resumed)]
-    for line in lines:
-        m = _RESUME_RUN_PATTERN.match(line)
-        if not m:
-            continue
-        ts_str, source, resumed = m.group(1), m.group(2), m.group(3)
-        if source not in _RESUME_SOURCES:
-            continue
-        try:
-            ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            continue
-        if ts < cutoff:
-            continue
-        runs.setdefault(source, []).append(resumed == "yes")
-
-    bad = [
-        s.replace("-telegram", "")
-        for s, flags in runs.items()
-        if len(flags) >= 2 and not any(flags)
-    ]
-
-    if bad:
-        return [result("bot-resume", WARN, f"stuck fresh (no resume): {', '.join(sorted(bad))}")]
-    active = len(runs)
-    return [result("bot-resume", OK, f"{active} active bot(s) resuming ok" if active else "no recent activity")]
-
-
 # ---------------------------------------------------------------------------
 # Metrics logging
 # ---------------------------------------------------------------------------
@@ -382,7 +312,6 @@ def run_all_checks():
     all_results.extend(check_ports())
     all_results.extend(check_claude_sessions())
     all_results.extend(check_sync_freshness())
-    all_results.extend(check_bot_resume())
     return all_results
 
 
@@ -440,31 +369,8 @@ def should_alert(name, severity, state):
     return True, "repeat"
 
 
-def send_telegram(message):
-    if not BOT_TOKEN or not CHAT_ID:
-        print("WARNING: Telegram credentials not configured in .env")
-        return False
-    try:
-        body = json.dumps({
-            "chat_id": int(CHAT_ID),
-            "text": message,
-            "parse_mode": "HTML",
-        }).encode()
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=10)
-        return True
-    except Exception as e:
-        print(f"Telegram send failed: {e}")
-        return False
-
-
 def format_alert_message(alerts, recoveries):
-    """Build a single batched Telegram message."""
+    """Build a single batched findings message."""
     lines = []
 
     if alerts:
@@ -541,9 +447,9 @@ def main():
             print("\nDRY RUN — would send:")
             print(message)
         else:
-            send_telegram(message)
+            print(message)
             if args.verbose:
-                print(f"\nSent Telegram alert ({len(alerts)} alerts, {len(recoveries)} recoveries)")
+                print(f"\nLogged {len(alerts)} alerts, {len(recoveries)} recoveries")
     elif args.verbose:
         print("\nNo alerts to send.")
 
