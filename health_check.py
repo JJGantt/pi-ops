@@ -388,7 +388,7 @@ def format_alert_message(alerts, recoveries):
         for r in recoveries:
             lines.append(f"\u2705 {r['name']}: {r['detail']}")
 
-    lines.append(f"\n<i>{datetime.now().strftime('%Y-%m-%d %H:%M')}</i>")
+    lines.append(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M')}")
     return "\n".join(lines)
 
 
