@@ -18,6 +18,8 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+import ops_report as ops
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG = json.loads((SCRIPT_DIR / "config.json").read_text())
 
@@ -401,6 +403,9 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Print all check results")
     parser.add_argument("--dry-run", "-n", action="store_true", help="Show alerts without sending")
     args = parser.parse_args()
+    if not args.dry_run:
+        # Also sends anything queued before the script exits, and reports a crash of the check itself.
+        ops.install(machine="pi", service="pi-ops-health")
 
     all_results = run_all_checks()
     log_metrics(all_results)
@@ -439,6 +444,12 @@ def main():
             elif r["name"] in state:
                 del state[r["name"]]
         save_state(state)
+
+    # Each finding that is due an alert is an error to the ops responder (health/responder), which groups
+    # repeats, starts an agent and tells Jared. Its own cooldown above decides what is due.
+    if not args.dry_run:
+        for r in alerts:
+            ops.report(f"{r['name']} [{r['severity']}]: {r['detail']}")
 
     # Send batched alert
     if alerts or recoveries:
