@@ -446,7 +446,7 @@ def main():
         save_state(state)
 
     # Each finding that is due an alert is an error to the ops responder (health/responder), which groups
-    # repeats, starts an agent and tells Jared. Its own cooldown above decides what is due.
+    # repeats, starts an agent and notifies the owner. Its own cooldown above decides what is due.
     if not args.dry_run:
         for r in alerts:
             ops.report(f"{r['name']} [{r['severity']}]: {r['detail']}")
