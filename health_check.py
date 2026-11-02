@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 Pi health checker — runs its checks and prints WARN/CRIT findings, which land in the
-journal under systemd (journalctl -u pi-ops-health). No pip dependencies; stdlib only.
+journal under systemd (journalctl -u pi-ops-health). Its one dependency is the ops-report package
+(requirements.txt), installed into .venv by setup.sh.
 
 Usage:
-    python3 health_check.py              # Normal: print WARN/CRIT findings only
-    python3 health_check.py --verbose    # Print all results
-    python3 health_check.py --dry-run    # Show findings without touching the cooldown state
+    .venv/bin/python health_check.py              # Normal: print WARN/CRIT findings only
+    .venv/bin/python health_check.py --verbose    # Print all results
+    .venv/bin/python health_check.py --dry-run    # Show findings without touching the cooldown state
 """
 
 import argparse

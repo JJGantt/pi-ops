@@ -4,6 +4,9 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 /home/jaredgantt/pi-ops/health_check.py
+ExecStart=/home/jaredgantt/pi-ops/.venv/bin/python /home/jaredgantt/pi-ops/health_check.py
 User=jaredgantt
 Group=jaredgantt
+# A beat to the ops responder after each successful run (health/responder); a failed run is already
+# reported by the OnFailure drop-in. '-' so an unreachable responder never fails the job itself.
+ExecStartPost=-/home/jaredgantt/repos/health/responder/bin/ops beat pi-ops-health 300

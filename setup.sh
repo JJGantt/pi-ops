@@ -29,7 +29,14 @@ echo "  -> /etc/systemd/journald.conf.d/99-retention.conf"
 echo "  Restarting journald..."
 systemctl restart systemd-journald
 
-# 4. Install systemd service and timer
+# 4. The check's venv: its one dependency is the ops-report package, pinned in requirements.txt.
+#    Bumping the pin is changing that line and running this again.
+echo "Installing the venv..."
+sudo -u jaredgantt python3 -m venv "$REPO_DIR/.venv"
+sudo -u jaredgantt "$REPO_DIR/.venv/bin/pip" install -q -r "$REPO_DIR/requirements.txt"
+echo "  -> $REPO_DIR/.venv"
+
+# 5. Install systemd service and timer
 echo "Installing systemd units..."
 cp "$REPO_DIR/systemd/pi-ops-health.service" /etc/systemd/system/
 cp "$REPO_DIR/systemd/pi-ops-health.timer" /etc/systemd/system/
@@ -40,7 +47,7 @@ systemctl enable pi-ops-health.timer
 systemctl start pi-ops-health.timer
 echo "  -> pi-ops-health.timer enabled and started"
 
-# 5. Verify
+# 6. Verify
 echo ""
 echo "=== Verification ==="
 echo "Timer status:"
@@ -53,4 +60,4 @@ echo "Journald config:"
 journalctl --disk-usage
 echo ""
 echo "=== Setup complete ==="
-echo "Run 'python3 $REPO_DIR/health_check.py --verbose --dry-run' to test."
+echo "Run '$REPO_DIR/.venv/bin/python $REPO_DIR/health_check.py --verbose --dry-run' to test."
