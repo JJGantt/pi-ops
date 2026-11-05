@@ -2,7 +2,6 @@
   "services": [
     "data-http.service",
     "voice-worker.service",
-    "pi-audio.service",
     "petlibro-collector.service"
   ],
   "ports": [
