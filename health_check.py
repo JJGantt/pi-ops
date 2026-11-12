@@ -144,6 +144,40 @@ def check_temperature():
     return [result("temperature", OK, detail)]
 
 
+UNDERVOLT_SEEN = Path(os.path.expanduser("~/data/ops/undervoltage-seen"))
+DRY_RUN = False
+
+
+def check_power():
+    """Under-voltage from the supply. The Pi has crashed repeatedly in boots that logged it, and the
+    kernel line is the only trace, so each new event is a finding. vcgencmd's sticky bit stays set for
+    the rest of the boot, so new events are counted from the kernel log against the count already
+    reported (kept per boot id in UNDERVOLT_SEEN)."""
+    try:
+        thr = int(subprocess.run(["vcgencmd", "get_throttled"], capture_output=True, text=True,
+                                 timeout=5).stdout.strip().split("=")[1], 16)
+        log = subprocess.run(["journalctl", "-k", "-b", "-q", "--no-pager", "-g", "Undervoltage detected"],
+                             capture_output=True, text=True, timeout=15).stdout
+        boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    except Exception as e:
+        return [result("power", WARN, f"cannot read: {e}")]
+    n = len([ln for ln in log.splitlines() if "Undervoltage detected" in ln])
+    seen = 0
+    try:
+        b, c = UNDERVOLT_SEEN.read_text().split()
+        seen = int(c) if b == boot else 0
+    except Exception:
+        pass
+    if n > seen and not DRY_RUN:
+        UNDERVOLT_SEEN.parent.mkdir(parents=True, exist_ok=True)
+        UNDERVOLT_SEEN.write_text(f"{boot} {n}\n")
+    if thr & 0x1:
+        return [result("power", CRIT, f"under-voltage now (throttled=0x{thr:x}, {n} event(s) this boot)")]
+    if n > seen:
+        return [result("power", WARN, f"{n - seen} under-voltage event(s) since the last check, {n} this boot")]
+    return [result("power", OK, f"throttled=0x{thr:x}")]
+
+
 def check_log_sizes():
     """Check log file sizes."""
     results = []
@@ -311,6 +345,7 @@ def run_all_checks():
     all_results.extend(check_swap())
     all_results.extend(check_disk())
     all_results.extend(check_temperature())
+    all_results.extend(check_power())
     all_results.extend(check_log_sizes())
     all_results.extend(check_ports())
     all_results.extend(check_claude_sessions())
@@ -404,6 +439,8 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Print all check results")
     parser.add_argument("--dry-run", "-n", action="store_true", help="Show alerts without sending")
     args = parser.parse_args()
+    global DRY_RUN
+    DRY_RUN = args.dry_run
     if not args.dry_run:
         # Also sends anything queued before the script exits, and reports a crash of the check itself.
         ops.install(machine="pi", service="pi-ops-health")
