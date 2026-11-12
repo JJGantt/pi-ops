@@ -485,9 +485,17 @@ def main():
 
     # Each finding that is due an alert is an error to the ops responder (health/responder), which groups
     # repeats, starts an agent and notifies the owner. Its own cooldown above decides what is due.
+    # A temperature WARN is the exception: the Pi has no fan, and a burst of process starts (a Claude
+    # session launching its MCP servers) lifts one 5-minute sample just past temp_warn_c, gone on the
+    # next tick and well short of the 80°C throttle point. It is sent as an occurrence, which the
+    # responder counts against its watch; CRIT stays an error.
     if not args.dry_run:
         for r in alerts:
-            ops.report(f"{r['name']} [{r['severity']}]: {r['detail']}")
+            message = f"{r['name']} [{r['severity']}]: {r['detail']}"
+            if r["name"] == "temperature" and r["severity"] == WARN and r["detail"].endswith("°C"):
+                ops.occurrence(message)
+            else:
+                ops.report(message)
 
     # Send batched alert
     if alerts or recoveries:
