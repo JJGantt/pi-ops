@@ -1,1 +1,1 @@
-ops-report @ https://github.com/JJGantt/ops-report/archive/refs/tags/v1.0.0.tar.gz
+ops-report @ https://github.com/JJGantt/ops-report/archive/refs/tags/v1.1.0.tar.gz
