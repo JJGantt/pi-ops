@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import time
+import traceback
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -30,9 +31,24 @@ METRICS_FILE = Path.home() / "data" / "metrics" / "health_metrics.jsonl"
 # Severity levels
 # ---------------------------------------------------------------------------
 OK, WARN, CRIT = "OK", "WARN", "CRIT"
+# A check that could not run at all. It is not a finding about the Pi, so it bypasses the alert cooldown
+# and the state file: check_failed() reports it to the ops responder as an error the moment it happens.
+ERROR = "ERROR"
+
+# Set by main() on a real run. Off under --dry-run and when mcp_server.py imports the checks, so neither
+# files errors as pi-ops-health.
+REPORT = False
 
 def result(name, severity, detail=""):
     return {"name": name, "severity": severity, "detail": detail}
+
+
+def check_failed(name, e):
+    """The check itself raised: an error to the ops responder, with its stack."""
+    if REPORT:
+        ops.report(f"check {name} failed: {type(e).__name__}: {e}", context={"check": name},
+                   stack=traceback.format_exc())
+    return result(name, ERROR, f"check failed: {e}")
 
 # ---------------------------------------------------------------------------
 # Check implementations
@@ -49,7 +65,8 @@ def check_services():
             )
             state = out.stdout.strip()
         except Exception as e:
-            state = f"error: {e}"
+            results.append(check_failed(f"svc:{svc}", e))
+            continue
 
         if state == "active":
             results.append(result(f"svc:{svc}", OK, "active"))
@@ -133,7 +150,7 @@ def check_temperature():
         temp_str = out.stdout.strip().split("=")[1].rstrip("'C")
         temp = float(temp_str)
     except Exception as e:
-        return [result("temperature", WARN, f"cannot read: {e}")]
+        return [check_failed("temperature", e)]
 
     detail = f"{temp:.1f}°C"
     t = CONFIG["thresholds"]
@@ -160,7 +177,7 @@ def check_power():
                              capture_output=True, text=True, timeout=15).stdout
         boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
     except Exception as e:
-        return [result("power", WARN, f"cannot read: {e}")]
+        return [check_failed("power", e)]
     n = len([ln for ln in log.splitlines() if "Undervoltage detected" in ln])
     seen = 0
     try:
@@ -208,7 +225,7 @@ def check_ports():
         )
         listening = out.stdout
     except Exception as e:
-        return [result("ports", WARN, f"cannot run ss: {e}")]
+        return [check_failed("ports", e)]
 
     for port in CONFIG["ports"]:
         if f":{port}" in listening:
@@ -266,7 +283,7 @@ def check_sync_freshness():
             else:
                 results.append(result(f"sync:{timer}", OK, detail))
         except Exception as e:
-            results.append(result(f"sync:{timer}", WARN, f"error: {e}"))
+            results.append(check_failed(f"sync:{timer}", e))
     return results
 
 
@@ -439,8 +456,9 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Print all check results")
     parser.add_argument("--dry-run", "-n", action="store_true", help="Show alerts without sending")
     args = parser.parse_args()
-    global DRY_RUN
+    global DRY_RUN, REPORT
     DRY_RUN = args.dry_run
+    REPORT = not args.dry_run
     if not args.dry_run:
         # Also sends anything queued before the script exits, and reports a crash of the check itself.
         ops.install(machine="pi", service="pi-ops-health")
@@ -452,7 +470,7 @@ def main():
         print(f"Pi Health Check — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("-" * 60)
         for r in all_results:
-            icon = {"OK": "\u2705", "WARN": "\u26a0\ufe0f ", "CRIT": "\u274c"}[r["severity"]]
+            icon = {"OK": "\u2705", "WARN": "\u26a0\ufe0f ", "CRIT": "\u274c", "ERROR": "\u2757"}[r["severity"]]
             print(f"  {icon} [{r['severity']:4s}] {r['name']:35s} {r['detail']}")
         print("-" * 60)
 
@@ -462,6 +480,8 @@ def main():
     recoveries = []
 
     for r in all_results:
+        if r["severity"] == ERROR:
+            continue  # reported by check_failed() already, and leaves the check's state as it was
         should, reason = should_alert(r["name"], r["severity"], state)
         if should:
             if reason == "recovery":
@@ -477,6 +497,8 @@ def main():
     if not args.dry_run:
         now = time.time()
         for r in all_results:
+            if r["severity"] == ERROR:
+                continue
             if r["severity"] != OK:
                 state[r["name"]] = {"severity": r["severity"], "time": now}
             elif r["name"] in state:
@@ -492,7 +514,7 @@ def main():
     if not args.dry_run:
         for r in alerts:
             message = f"{r['name']} [{r['severity']}]: {r['detail']}"
-            if r["name"] == "temperature" and r["severity"] == WARN and r["detail"].endswith("°C"):
+            if r["name"] == "temperature" and r["severity"] == WARN:
                 ops.occurrence(message)
             else:
                 ops.report(message)

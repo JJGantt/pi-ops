@@ -35,10 +35,15 @@ _ALLOWED_SERVICES = set(CONFIG["services"])
 def _format_check_results(results: list) -> str:
     """Format health check results into a readable report."""
     lines = []
+    errors = [r for r in results if r["severity"] == "ERROR"]
     crits = [r for r in results if r["severity"] == "CRIT"]
     warns = [r for r in results if r["severity"] == "WARN"]
     oks = [r for r in results if r["severity"] == "OK"]
 
+    if errors:
+        lines.append("CHECK FAILED:")
+        for r in errors:
+            lines.append(f"  X {r['name']}: {r['detail']}")
     if crits:
         lines.append("CRITICAL:")
         for r in crits:
@@ -52,7 +57,7 @@ def _format_check_results(results: list) -> str:
         for r in oks:
             lines.append(f"  . {r['name']}: {r['detail']}")
 
-    summary = f"{len(crits)} critical, {len(warns)} warning, {len(oks)} ok"
+    summary = f"{len(errors)} failed, {len(crits)} critical, {len(warns)} warning, {len(oks)} ok"
     lines.insert(0, f"System Status — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.insert(1, summary)
     lines.insert(2, "")
